@@ -1,0 +1,11 @@
+{
+  "provider_http" : "",
+  "router_address": "",
+  "new_token_address": "",
+  "trade_wallet_address": ["", ""],
+  "trade_private_keys": ["",""],
+  "trade_eth_amounts": [[0.01, 0.03], [0.001, 0.003]],
+  "time_delays": [10, 5],
+  "trade_gas_price": 5,
+  "trade_gas_limit": 1000000
+}
