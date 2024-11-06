@@ -6,8 +6,9 @@ from web3 import Web3
 from datetime import datetime
 import threading
 import os
+import cli_ui
 
-from pyuniswap.pyuniswap import Token
+from pyuniswap.pyuniswap3 import Token
 # print("module import end!")
 
 f = open('config.json')
@@ -15,6 +16,7 @@ data = json.load(f)
 provider_http = data["provider_http"]
 router_address = data["router_address"]
 new_token_address = data["new_token_address"]
+pool_fee = int(data["pool_fee"])
 
 trade_gas_price = int(data["trade_gas_price"] * pow(10, 9))
 trade_gas_limit = int(data["trade_gas_limit"])
@@ -53,7 +55,6 @@ for time_delay in data["time_delays"]:
 
 # print(f"Current_token:{new_token_address}, symbol: {token_symbol}, decimals: {token_decimal}")
 
-
 def start_bot(addr, pvtkey, start_amount, time_delay=10):
     print(f"Current_address:{addr}")
     current_token = Token(
@@ -63,16 +64,19 @@ def start_bot(addr, pvtkey, start_amount, time_delay=10):
             )
     current_token.connect_wallet(addr, pvtkey)
     current_token.set_gas_limit(trade_gas_limit)
-    sign_buy_tx = current_token.buy(start_amount, gas_price=trade_gas_price, timeout=2100)
+    current_token.wrap_ether(start_amount)
+
+    sign_buy_tx = current_token.buyv3(start_amount, pool_fee=pool_fee, gas_price=trade_gas_price, timeout=2100)
     buy_result = current_token.send_buy_transaction(sign_buy_tx)
     current_token.web3.eth.wait_for_transaction_receipt(buy_result)
     print(f'buy transaction hash: {buy_result.hex()}')
     
     print(f'Start Sell')
     received_amount = current_token.balance()
-    sign_sell_tx = current_token.sell(received_amount, gas_price=trade_gas_price, timeout=2100)
+    sign_sell_tx = current_token.sellv3(received_amount, pool_fee=pool_fee, gas_price=trade_gas_price, timeout=2100)
     current_token.web3.eth.wait_for_transaction_receipt(sign_sell_tx)
     print(f'sell transaction hash: {sign_sell_tx.hex()}')
+    current_token.unwrap_ether(start_amount)
     time.sleep(time_delay);
 
 

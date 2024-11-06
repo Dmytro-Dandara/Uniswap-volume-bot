@@ -1,10 +1,11 @@
 {
   "provider_http" : "",
-  "router_address": "",
-  "new_token_address": "",
-  "trade_wallet_address": ["", ""],
-  "trade_private_keys": ["",""],
-  "trade_eth_amounts": [[0.01, 0.03], [0.001, 0.003]],
+  "router_address": "0x2626664c2603336E57B271c5C0b26F421741e481",
+  "new_token_address": "0x375017aB9797614f3B0E069c0F3E71b9a8C4d33c",
+  "pool_fee": 500,
+  "trade_wallet_address": [""],
+  "trade_private_keys": [""],
+  "trade_eth_amounts": [[0.01, 0.03]],
   "time_delays": [10, 5],
   "trade_gas_price": 5,
   "trade_gas_limit": 1000000
