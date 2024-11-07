@@ -10,10 +10,9 @@ import eth_abi.packed
 class Token:
     # ETH
     ETH_ADDRESS = Web3.to_checksum_address('0xae13d989dac2f0debff460ac112a837c89baa7cd')
-
     MAX_AMOUNT = int('0x' + 'f' * 64, 16)
 
-    def __init__(self, address, router, provider=None):
+    def __init__(self, address, router, wrap_addr, provider=None):
         
         print("address: " + address + ", provider: " + provider )
         self.address = Web3.to_checksum_address(address)
@@ -27,6 +26,8 @@ class Token:
         self.wallet_address = None
 
         # ETH
+        ETH_ADDRESS = Web3.to_checksum_address(wrap_addr)
+
         self.router = self.web3.eth.contract(
             address=Web3.to_checksum_address(router),
             abi=json.load(open("pyuniswap/abi_files/" + "router3.abi")))
@@ -37,9 +38,6 @@ class Token:
             open("pyuniswap/abi_files/" + "wrap.abi"))
 
         self.gas_limit = 500000
-        print("Token init end!")
-        # self.gas_limit = 297255
-        # self.gas_limit = 500000
 
     def get_symbol(self, address=None):
         address = self.wallet_address if not address else Web3.to_checksum_address(address)
@@ -166,14 +164,18 @@ class Token:
         return erc20_contract.functions.balanceOf(self.wallet_address).call()
 
     @require_connected
-    def buyv3(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, pool_fee=500, timeout=900, gas_price=1, speed=1):
+    def buyv3(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, pool_fee=500, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
             gas_price = int(gas_price)
         
         min_out = 0
-        path = eth_abi.packed.encode_packed(['address','uint24','address'], [consumed_token_address,pool_fee,self.address])
+        if not self.is_approved(consumed_token_address, consumed_token_amount):
+            self.approve(self.address, gas_price=gas_price, timeout=timeout)
+
+
+        path = eth_abi.packed.encode_packed(['address','uint24','address'], [consumed_token_address, pool_fee, self.address])
         tx_params = (
             path, 
             self.wallet_address, 
@@ -187,7 +189,7 @@ class Token:
         # return self.send_transaction(signed_tx)
 
     @require_connected
-    def buyv2(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, timeout=900, speed=1):
+    def buyv2(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -202,7 +204,7 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def sellv3(self, amount, received_token_address=ETH_ADDRESS, pool_fee=500, timeout=900, gas_price=1, speed=1):
+    def sellv3(self, amount, received_token_address=ETH_ADDRESS, pool_fee=500,  gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -225,12 +227,11 @@ class Token:
         return self.send_transaction(func, params)
 
     @require_connected
-    def sellv2(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, timeout=900, speed=1):
+    def sellv2(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01,  gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
             gas_price = int(gas_price)
-        received_token_address = Web3.to_checksum_address(received_token_address)
         # received_amount = self.price(amount, received_token_address)
         # min_out = int(received_amount * (1 - slippage))
         min_out = 0

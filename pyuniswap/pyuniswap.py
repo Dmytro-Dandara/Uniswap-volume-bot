@@ -9,11 +9,9 @@ from functools import wraps
 class Token:
     # ETH
     ETH_ADDRESS = Web3.to_checksum_address('0xae13d989dac2f0debff460ac112a837c89baa7cd')
-
     MAX_AMOUNT = int('0x' + 'f' * 64, 16)
 
-    def __init__(self, address, router, provider=None):
-        print("Token init begin!")
+    def __init__(self, address, router, wrap_addr, provider=None):
         print("address: " + address + ", provider: " + provider )
         self.address = Web3.to_checksum_address(address)
         self.provider = os.environ['PROVIDER'] if not provider else provider
@@ -26,6 +24,8 @@ class Token:
         self.wallet_address = None
 
         # ETH
+        ETH_ADDRESS = Web3.to_checksum_address(wrap_addr)
+
         self.router = self.web3.eth.contract(
             address=Web3.to_checksum_address(router),
             abi=json.load(open("pyuniswap/abi_files/" + "router.abi")))
@@ -33,9 +33,6 @@ class Token:
             open("pyuniswap/abi_files/" + "erc20.abi"))
 
         self.gas_limit = 500000
-        print("Token init end!")
-        # self.gas_limit = 297255
-        # self.gas_limit = 500000
 
     def get_symbol(self, address=None):
         address = self.wallet_address if not address else Web3.to_checksum_address(address)
@@ -159,8 +156,11 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def buy(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, timeout=900, gas_price=1, speed=1):
-        gas_price = int(gas_price)
+    def buy(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+        if gas_price == 1:
+            gas_price = int(self.web3.eth.gas_price * speed)
+        else:
+            gas_price = int(gas_price)
         min_out = 0
         func = self.router.functions.swapExactETHForTokens(min_out, [consumed_token_address, self.address],
                                                            self.wallet_address, int(time.time() + timeout))
@@ -170,9 +170,15 @@ class Token:
         # return self.send_transaction(signed_tx)
 
     @require_connected
-    def buybywbnb(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, timeout=900, speed=1):
-        gas_price = int(5 * 10 ** 9 * speed)
+    def buybywbnb(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+        if gas_price == 1:
+            gas_price = int(self.web3.eth.gas_price * speed)
+        else:
+            gas_price = int(gas_price)
         min_out = 0
+        if not self.is_approved(self.address, consumed_token_amount):
+            self.approve(self.address, gas_price=gas_price, timeout=timeout)
+
         func = self.router.functions.swapExactTokensForTokensSupportingFeeOnTransferTokens(consumed_token_amount, min_out,
                                                               [consumed_token_address, self.address],
                                                               self.wallet_address, int(time.time() + timeout))
@@ -181,12 +187,13 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def sell(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, timeout=900, gas_price=1, speed=1):
+    def sell(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
             gas_price = int(gas_price)
         min_out = 0
+        received_token_address = Web3.to_checksum_address(received_token_address)
         if not self.is_approved(self.address, amount):
             self.approve(self.address, gas_price=gas_price, timeout=timeout)
         if received_token_address == self.ETH_ADDRESS:
@@ -200,17 +207,19 @@ class Token:
         return self.send_transaction(func, params)
 
 
-
-
     @require_connected
-    def sellbywbnb(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, timeout=900, speed=1):
-        gas_price = int(self.web3.eth.gas_price * speed)
+    def sellbywbnb(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+        if gas_price == 1:
+            gas_price = int(self.web3.eth.gas_price * speed)
+        else:
+            gas_price = int(gas_price)
         received_token_address = Web3.to_checksum_address(received_token_address)
-        received_amount = self.price(amount, received_token_address)
-        min_out = int(received_amount * (1 - slippage))
-        # min_out = 0
+        # received_amount = self.price(amount, received_token_address)
+        # min_out = int(received_amount * (1 - slippage))
+        min_out = 0
         if not self.is_approved(self.address, amount):
             self.approve(self.address, gas_price=gas_price, timeout=timeout)
+        
         if received_token_address == self.ETH_ADDRESS:
             func = self.router.functions.swapExactTokensForTokens(amount, min_out,
                                                                   [self.address, received_token_address],

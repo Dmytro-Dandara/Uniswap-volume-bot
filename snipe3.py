@@ -8,9 +8,9 @@ import threading
 import os
 import cli_ui
 
-from pyuniswap.pyuniswap import Token
+from pyuniswap.pyuniswap3 import Token
 
-print("You are runing Bot v2!")
+print("You are runing Bot v3!")
 
 f = open('config.json')
 data = json.load(f)
@@ -48,9 +48,6 @@ suggest_gas_price = web3.eth.gas_price
 if suggest_gas_price/pow(10,9) > trade_gas_price:
     raise ValueError(f"Your Gas Price has to be higher than {suggest_gas_price/pow(10,9)}")
 
-if buying_token_address == wrap_ether_address:
-    raise ValueError(f"Please input correct token address")
-
 token_decimal = 18
 current_token = None
 if consume_token_address != wrap_ether_address:
@@ -68,7 +65,7 @@ if consume_token_address != wrap_ether_address:
 
 
 def start_bot(consuming_token, buying_token, from_addr, pvtkey, start_amount, time_delay=10):
-
+    
     current_token = Token(
                 address=buying_token,
                 router=router_address,
@@ -77,63 +74,39 @@ def start_bot(consuming_token, buying_token, from_addr, pvtkey, start_amount, ti
             )
     current_token.connect_wallet(from_addr, pvtkey)
     current_token.set_gas_limit(trade_gas_limit)
+    if consuming_token == wrap_ether_address:    
+        current_token.wrap_ether(start_amount)
+    print(f'{from_addr}-Start Buy')
+    try:
+        sign_buy_raw_tx = current_token.buyv3(start_amount, consuming_token, pool_fee, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
+        sign_buy_tx = current_token.send_buy_transaction(sign_buy_raw_tx)
+        tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_buy_tx)
+
+        # Check if the transaction was successful
+        if tx_receipt.status == 1:
+            print(f"Buy Transaction was successful: {sign_buy_tx.hex()}")
+        else:
+            print(f"Buy Transaction failed: {sign_buy_tx.hex()}")
+    except Exception as e:
+        print(f"Buy Transaction Failed:{e}")
+
+    print(f'{from_addr}-Start Sell')
+
+    try:
+        received_amount = current_token.balance()
+        sign_sell_tx = current_token.sellv3(received_amount, consuming_token, pool_fee, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
+        tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_sell_tx)
+        
+        # Check if the transaction was successful
+        if tx_receipt.status == 1:
+            print(f"Sell Transaction was successful: {sign_sell_tx.hex()}")
+        else:
+            print(f"Sell Transaction failed: {sign_sell_tx.hex()}")
+    except Exception as e:
+        print(f"Sell Transaction Failed:{e}")
 
     if consuming_token == wrap_ether_address:    
-        try:
-            sign_buy_raw_tx = current_token.buy(start_amount, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
-            sign_buy_tx = current_token.send_buy_transaction(sign_buy_raw_tx)
-            tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_buy_tx)
-
-            # Check if the transaction was successful
-            if tx_receipt.status == 1:
-                print(f"Buy Transaction was successful: {sign_buy_tx.hex()}")
-            else:
-                print(f"Buy Transaction failed: {sign_buy_tx.hex()}")
-        except Exception as e:
-            print(f"Buy Transaction Failed:{e}")
-
-        try:
-            received_amount = current_token.balance()
-            
-            sign_sell_tx = current_token.sell(received_amount, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
-            tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_sell_tx)
-            
-            # Check if the transaction was successful
-            if tx_receipt.status == 1:
-                print(f"Sell Transaction was successful: {sign_sell_tx.hex()}")
-            else:
-                print(f"Sell Transaction failed: {sign_sell_tx.hex()}")
-        except Exception as e:
-            print(f"Sell Transaction Failed:{e}")
-    else:
-
-        try:
-            sign_buy_raw_tx = current_token.buybywbnb(start_amount, consuming_token, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
-            sign_buy_tx = current_token.send_buy_transaction(sign_buy_raw_tx)
-            tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_buy_tx)
-
-            # Check if the transaction was successful
-            if tx_receipt.status == 1:
-                print(f"Buy Transaction was successful: {sign_buy_tx.hex()}")
-            else:
-                print(f"Buy Transaction failed: {sign_buy_tx.hex()}")
-        except Exception as e:
-            print(f"Buy Transaction Failed:{e}")
-
-        try:
-            received_amount = current_token.balance()
-            
-            sign_sell_tx = current_token.sellbywbnb(received_amount, consuming_token, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
-            tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_sell_tx)
-            
-            # Check if the transaction was successful
-            if tx_receipt.status == 1:
-                print(f"Sell Transaction was successful: {sign_sell_tx.hex()}")
-            else:
-                print(f"Sell Transaction failed: {sign_sell_tx.hex()}")
-        except Exception as e:
-            print(f"Sell Transaction Failed:{e}")
-    
+        current_token.unwrap_ether(start_amount)
     # waiting while delay time
     time.sleep(time_delay);
 
