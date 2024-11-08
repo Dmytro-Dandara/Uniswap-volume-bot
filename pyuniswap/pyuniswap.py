@@ -24,7 +24,7 @@ class Token:
         self.wallet_address = None
 
         # ETH
-        ETH_ADDRESS = Web3.to_checksum_address(wrap_addr)
+        Token.ETH_ADDRESS = Web3.to_checksum_address(wrap_addr)
 
         self.router = self.web3.eth.contract(
             address=Web3.to_checksum_address(router),
@@ -55,8 +55,8 @@ class Token:
         # print("connect wallet!")
         self.wallet_address = Web3.to_checksum_address(wallet_address)
         self.private_key = private_key
-        if not self.is_approved(self.ETH_ADDRESS):
-            self.approve(self.ETH_ADDRESS, gas_price=self.web3.eth.gas_price, timeout=2100)
+        if not self.is_approved(Token.ETH_ADDRESS):
+            self.approve(Token.ETH_ADDRESS, gas_price=self.web3.eth.gas_price, timeout=2100)
         # print("connect wallet end!")
 
     def is_connected(self):
@@ -122,11 +122,11 @@ class Token:
         tx = self.send_transaction(func, params)
         self.web3.eth.wait_for_transaction_receipt(tx, timeout=timeout)
 
-    def price(self, amount=int(1e18), swap_token_address=ETH_ADDRESS):
+    def price(self, amount=int(1e18), swap_token_address=''):
         swap_token_address = Web3.to_checksum_address(swap_token_address)
         return self.router.functions.getAmountsOut(amount, [self.address, swap_token_address]).call()[-1]
 
-    def received_amount_by_swap(self, input_token_amount=int(1e18), input_token_address=ETH_ADDRESS):
+    def received_amount_by_swap(self, input_token_amount=int(1e18), input_token_address=''):
         input_token_address = Web3.to_checksum_address(input_token_address)
         return self.router.functions.getAmountsOut(input_token_amount, [input_token_address, self.address]).call()[-1]
 
@@ -147,7 +147,7 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def addliquidity(self, tokenA_amount, tokenB_amount, tokenA_address=ETH_ADDRESS, tokenB_address=ETH_ADDRESS, tokenA_min_amount=0, tokenB_min_amount=0, timeout=900, gas_price=1, speed=1):
+    def addliquidity(self, tokenA_amount, tokenB_amount, tokenA_address, tokenB_address, tokenA_min_amount=0, tokenB_min_amount=0, timeout=900, gas_price=1, speed=1):
         gas_price = int(gas_price)
         tokenB_address=self.address
         func = self.router.functions.addLiquidity(tokenA_address, tokenB_address, tokenA_amount, tokenB_amount, tokenA_min_amount, tokenB_min_amount, self.wallet_address, int(time.time() + timeout))
@@ -156,7 +156,7 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def buy(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+    def buy(self, consumed_token_amount, consumed_token_address, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -170,13 +170,13 @@ class Token:
         # return self.send_transaction(signed_tx)
 
     @require_connected
-    def buybywbnb(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+    def buybywbnb(self, consumed_token_amount, consumed_token_address, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
             gas_price = int(gas_price)
         min_out = 0
-        if not self.is_approved(self.address, consumed_token_amount):
+        if not self.is_approved(consumed_token_address, consumed_token_amount):
             self.approve(self.address, gas_price=gas_price, timeout=timeout)
 
         func = self.router.functions.swapExactTokensForTokensSupportingFeeOnTransferTokens(consumed_token_amount, min_out,
@@ -187,7 +187,7 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def sell(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+    def sell(self, amount, received_token_address, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -196,7 +196,7 @@ class Token:
         received_token_address = Web3.to_checksum_address(received_token_address)
         if not self.is_approved(self.address, amount):
             self.approve(self.address, gas_price=gas_price, timeout=timeout)
-        if received_token_address == self.ETH_ADDRESS:
+        if received_token_address == Token.ETH_ADDRESS:
             func = self.router.functions.swapExactTokensForETHSupportingFeeOnTransferTokens(amount, min_out, [self.address, received_token_address],
                                                                self.wallet_address, int(time.time() + timeout))
         else:
@@ -208,7 +208,7 @@ class Token:
 
 
     @require_connected
-    def sellbywbnb(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+    def sellbywbnb(self, amount, received_token_address, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -220,7 +220,7 @@ class Token:
         if not self.is_approved(self.address, amount):
             self.approve(self.address, gas_price=gas_price, timeout=timeout)
         
-        if received_token_address == self.ETH_ADDRESS:
+        if received_token_address == Token.ETH_ADDRESS:
             func = self.router.functions.swapExactTokensForTokens(amount, min_out,
                                                                   [self.address, received_token_address],
                                                                   self.wallet_address, int(time.time() + timeout))

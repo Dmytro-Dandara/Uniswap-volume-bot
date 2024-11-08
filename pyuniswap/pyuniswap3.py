@@ -26,7 +26,7 @@ class Token:
         self.wallet_address = None
 
         # ETH
-        ETH_ADDRESS = Web3.to_checksum_address(wrap_addr)
+        Token.ETH_ADDRESS = Web3.to_checksum_address(wrap_addr)
 
         self.router = self.web3.eth.contract(
             address=Web3.to_checksum_address(router),
@@ -57,11 +57,10 @@ class Token:
         self.gas_limit = int(gas_limit)
 
     def connect_wallet(self, wallet_address='', private_key=''):
-        # print("connect wallet!")
         self.wallet_address = Web3.to_checksum_address(wallet_address)
         self.private_key = private_key
-        if not self.is_approved(self.ETH_ADDRESS):
-            self.approve(self.ETH_ADDRESS, gas_price=self.web3.eth.gas_price, timeout=2100)
+        if not self.is_approved(Token.ETH_ADDRESS):
+            self.approve(Token.ETH_ADDRESS, gas_price=self.web3.eth.gas_price, timeout=2100)
         # print("connect wallet end!")
 
     def is_connected(self):
@@ -93,7 +92,7 @@ class Token:
 
     def wrap_ether(self, amountIn):
         gas_price = self.web3.eth.gas_price
-        weth_contract = self.web3.eth.contract(address=self.ETH_ADDRESS, abi=self.wrap_abi)
+        weth_contract = self.web3.eth.contract(address=Token.ETH_ADDRESS, abi=self.wrap_abi)
         func = weth_contract.functions.deposit()
         params = self.create_transaction_params(value=amountIn, gas_price=gas_price)
         tx = self.send_transaction(func, params)
@@ -103,7 +102,7 @@ class Token:
 
     def unwrap_ether(self, amountIn):
         gas_price = self.web3.eth.gas_price
-        weth_contract = self.web3.eth.contract(address=self.ETH_ADDRESS, abi=self.wrap_abi)
+        weth_contract = self.web3.eth.contract(address=Token.ETH_ADDRESS, abi=self.wrap_abi)
         weth_balance = weth_contract.functions.balanceOf(self.wallet_address).call()
         func = weth_contract.functions.withdraw(amountIn)
         params = self.create_transaction_params(gas_price=gas_price)
@@ -126,6 +125,7 @@ class Token:
     def is_approved(self, token_address=None, amount=MAX_AMOUNT):
         token_address = Web3.to_checksum_address(token_address) if token_address else self.address
         erc20_contract = self.web3.eth.contract(address=token_address, abi=self.erc20_abi)
+        print(token_address)
         approved_amount = erc20_contract.functions.allowance(self.wallet_address, self.router.address).call()
         # print(approved_amount)
         return approved_amount >= amount
@@ -148,11 +148,11 @@ class Token:
         tx = self.send_transaction(func, params)
         self.web3.eth.wait_for_transaction_receipt(tx, timeout=timeout)
 
-    def price(self, amount=int(1e18), swap_token_address=ETH_ADDRESS):
+    def price(self, amount=int(1e18), swap_token_address=''):
         swap_token_address = Web3.to_checksum_address(swap_token_address)
         return self.router.functions.getAmountsOut(amount, [self.address, swap_token_address]).call()[-1]
 
-    def received_amount_by_swap(self, input_token_amount=int(1e18), input_token_address=ETH_ADDRESS):
+    def received_amount_by_swap(self, input_token_amount=int(1e18), input_token_address=''):
         input_token_address = Web3.to_checksum_address(input_token_address)
         return self.router.functions.getAmountsOut(input_token_amount, [input_token_address, self.address]).call()[-1]
 
@@ -164,7 +164,7 @@ class Token:
         return erc20_contract.functions.balanceOf(self.wallet_address).call()
 
     @require_connected
-    def buyv3(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, pool_fee=500, gas_price=1, timeout=900, speed=1):
+    def buyv3(self, consumed_token_amount, consumed_token_address, pool_fee=500, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -189,7 +189,7 @@ class Token:
         # return self.send_transaction(signed_tx)
 
     @require_connected
-    def buyv2(self, consumed_token_amount, consumed_token_address=ETH_ADDRESS, slippage=0.01, gas_price=1, timeout=900, speed=1):
+    def buyv2(self, consumed_token_amount, consumed_token_address, slippage=0.01, gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -204,7 +204,7 @@ class Token:
         return self.web3.eth.account.sign_transaction(tx, private_key=self.private_key)
 
     @require_connected
-    def sellv3(self, amount, received_token_address=ETH_ADDRESS, pool_fee=500,  gas_price=1, timeout=900, speed=1):
+    def sellv3(self, amount, received_token_address, pool_fee=500,  gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:
@@ -227,7 +227,7 @@ class Token:
         return self.send_transaction(func, params)
 
     @require_connected
-    def sellv2(self, amount, received_token_address=ETH_ADDRESS, slippage=0.01,  gas_price=1, timeout=900, speed=1):
+    def sellv2(self, amount, received_token_address, slippage=0.01,  gas_price=1, timeout=900, speed=1):
         if gas_price == 1:
             gas_price = int(self.web3.eth.gas_price * speed)
         else:

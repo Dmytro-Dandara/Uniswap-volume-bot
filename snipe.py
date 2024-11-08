@@ -80,7 +80,7 @@ def start_bot(consuming_token, buying_token, from_addr, pvtkey, start_amount, ti
 
     if consuming_token == wrap_ether_address:    
         try:
-            sign_buy_raw_tx = current_token.buy(start_amount, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
+            sign_buy_raw_tx = current_token.buy(start_amount, consuming_token, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
             sign_buy_tx = current_token.send_buy_transaction(sign_buy_raw_tx)
             tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_buy_tx)
 
@@ -95,7 +95,7 @@ def start_bot(consuming_token, buying_token, from_addr, pvtkey, start_amount, ti
         try:
             received_amount = current_token.balance()
             
-            sign_sell_tx = current_token.sell(received_amount, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
+            sign_sell_tx = current_token.sell(received_amount, consuming_token, gas_price=trade_gas_price * pow(10, 9), timeout=2100)
             tx_receipt = current_token.web3.eth.wait_for_transaction_receipt(sign_sell_tx)
             
             # Check if the transaction was successful
